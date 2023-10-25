@@ -137,7 +137,7 @@ namespace Dwapi.Exchange.SharedKernel.Infrastructure.Data
             int[] siteCode = null, string cccNumber = "", string recencyId = "", string indicatorName = null, int[] period = null)
         {
             
-           var whereList=new List<string>();
+            var whereList=new List<string>();
             dynamic whereVals = new ExpandoObject();
             pageNumber = pageNumber < 0 ? 1 : pageNumber;
             pageSize = pageSize < 0 ? 1 : pageSize;
@@ -155,11 +155,12 @@ namespace Dwapi.Exchange.SharedKernel.Infrastructure.Data
                 {
                     cn.Open();
 
-
+                    var countSql = $"SELECT COUNT(*) FROM ({definition.SqlScript}) AS CountQuery";
                     if (null != siteCode && siteCode.Any())
                     {
                         whereList.Add($"FacilityCode IN @siteCode");
                         whereVals.siteCode = siteCode;
+                        countSql = $"{countSql} WHERE FacilityCode IN @siteCode";
                     }
 
                     if (!string.IsNullOrWhiteSpace(cccNumber))
@@ -193,8 +194,14 @@ namespace Dwapi.Exchange.SharedKernel.Infrastructure.Data
                     }
 
                     if (whereList.Any())
-                        sql = $"{sql} WHERE {string.Join(" AND ",whereList)} ";
+                    {
+                        sql = $"{sql} WHERE {string.Join(" AND ", whereList)} ";
 
+                    }
+                    int totalItemCount = 0;
+                    totalItemCount = await cn.ExecuteScalarAsync<int>(countSql, new { siteCode });
+                    pageCount = (int)Math.Ceiling((double)totalItemCount / pageSize);
+                    Log.Information(pageSize.ToString());
                     sql = $"{sql} ORDER BY LiveRowId ";
 
                     var sqlPaging = @"
@@ -838,7 +845,7 @@ namespace Dwapi.Exchange.SharedKernel.Infrastructure.Data
                 throw;
             }
         }
-        
+
         public Task Initialize(ExtractDefinition definition)
         {
             throw new NotImplementedException();
